@@ -1,0 +1,35 @@
+ARG UV_VERSION=0.4.30
+
+ARG CUDA_TAG=12.6.2-cudnn-runtime-ubuntu22.04
+
+FROM ghcr.io/astral-sh/uv:${UV_VERSION} as uv
+
+FROM nvidia/cuda:${CUDA_TAG}
+
+ARG UV_VERSION="0.4.30"
+
+COPY --from=uv /uv /uvx /bin/
+
+RUN apt-get update && apt-get install -y \
+    python3.10 \
+    python3.10-venv \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create and activate virtual environment
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv
+ENV VIRTUAL_ENV=${UV_PROJECT_ENVIRONMENT}
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+
+# Set up working directory
+WORKDIR /app
+
+# set python path
+ENV PYTHONPATH=/app
+
+# Copy project configuration
+COPY pyproject.toml uv.lock ./
+
+# # Install dependencies using uv
+RUN uv sync
