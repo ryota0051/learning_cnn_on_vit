@@ -1,7 +1,47 @@
+import random
+from collections import defaultdict
+
 import numpy as np
 import PIL
+from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms 
+
+from src.reproducibility import set_seed
+
+
+class SSDADatasetWithLabel(Dataset):
+    def __init__(self, imgs, labels, transform):
+        self.imgs = imgs
+        self.labels = labels
+        self.transform = transform
+
+    def __getitem__(self, index):
+        img, label = self.imgs[index], self.labels[index]
+        img = Image.fromarray(np.transpose(img, (1, 2, 0)))
+        if self.transform:
+            img = self.transform(img)
+        return img, int(label)
+
+    def __len__(self):
+        return len(self.imgs)
+
+
+class SSDADatasetWithoutLabel(Dataset):
+    def __init__(self, imgs, weak_transform, strong_transform):
+        self.imgs = imgs
+        self.weak_transform = weak_transform
+        self.strong_transform = strong_transform
+
+    def __getitem__(self, index):
+        img = self.imgs[index]
+        img = Image.fromarray(np.transpose(img, (1, 2, 0)))
+        weak_x = self.weak_transform(img)
+        strong_x = self.strong_transform(img)
+        return weak_x, strong_x
+
+    def __len__(self):
+        return len(self.imgs)
 
 
 class TransformDataset(Dataset):
@@ -118,3 +158,27 @@ def get_test_transform(
             transforms.Normalize(mean=mean, std=std)
         ]
     )
+
+
+def get_unlabeled_and_labeled_indices(
+    labels: np.ndarray,
+    num_labeled_indices_per_label,
+    seed=None
+):
+    if seed is not None:
+        set_seed(seed)
+    indices_per_label = defaultdict(list)
+    for i, label in enumerate(labels):
+        indices_per_label[label].append(i)
+
+    labled_indices = []
+    for label in range(10):
+        label_indices = indices_per_label[label]
+        selected_label_indices = random.sample(
+            label_indices,
+            num_labeled_indices_per_label
+        )
+        labled_indices += selected_label_indices
+    all_labels = set(range(len(labels)))
+    unlabeled_indices = list(all_labels - set(labled_indices))
+    return list(unlabeled_indices), list(labled_indices)
