@@ -6,8 +6,6 @@ FROM ghcr.io/astral-sh/uv:${UV_VERSION} as uv
 
 FROM nvidia/cuda:${CUDA_TAG}
 
-ARG UV_VERSION="0.4.30"
-
 COPY --from=uv /uv /uvx /bin/
 
 RUN apt-get update && apt-get install -y \
